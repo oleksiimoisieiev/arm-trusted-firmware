@@ -17,6 +17,7 @@ MULTI_CONSOLE_API		:= 1
 CRASH_REPORTING			:= 1
 HANDLE_EA_EL3_FIRST		:= 1
 ENABLE_STACK_PROTECTOR	:= strong
+RCAR_SCMI_PLATFORM		?= 0
 
 $(eval $(call add_define,PLAT_EXTRA_LD_SCRIPT))
 
@@ -439,16 +440,20 @@ BL31_SOURCES	+=	${RCAR_GIC_SOURCES}				\
 			drivers/renesas/rcar/scif/scif.S        \
 			drivers/renesas/rcar/console/rcar_printf.c	\
 			drivers/renesas/rcar/delay/micro_delay.c	\
-			plat/renesas/rcar/rcar_scmi.c			\
-			plat/renesas/rcar/rcar_scmi_base.c		\
-			plat/renesas/rcar/rcar_scmi_devices.c		\
-			plat/renesas/rcar/rcar_scmi_power.c		\
-			plat/renesas/rcar/rcar_scmi_reset.c		\
-			plat/renesas/rcar/rcar_scmi_clocks.c		\
 			drivers/renesas/rcar/pwrc/call_sram.S		\
 			drivers/renesas/rcar/pwrc/pwrc.c		\
 			drivers/renesas/rcar/common.c			\
 			drivers/arm/cci/cci.c
+
+ifneq (${RCAR_SCMI_PLATFORM},0)
+$(eval $(call add_define,RCAR_SCMI_PLATFORM))
+BL31_SOURCES	+=	plat/renesas/rcar/rcar_scmi.c			\
+			plat/renesas/rcar/rcar_scmi_base.c		\
+			plat/renesas/rcar/rcar_scmi_devices.c		\
+			plat/renesas/rcar/rcar_scmi_power.c		\
+			plat/renesas/rcar/rcar_scmi_reset.c		\
+			plat/renesas/rcar/rcar_scmi_clocks.c
+endif
 
 ifeq (${RCAR_GEN3_ULCB},1)
 BL31_SOURCES		+=	drivers/renesas/rcar/cpld/ulcb_cpld.c
