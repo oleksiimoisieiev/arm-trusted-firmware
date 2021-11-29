@@ -453,7 +453,8 @@ BL31_SOURCES	+=	plat/renesas/rcar/rcar_scmi.c			\
 			plat/renesas/rcar/rcar_scmi_devices.c		\
 			plat/renesas/rcar/rcar_scmi_power.c		\
 			plat/renesas/rcar/rcar_scmi_reset.c		\
-			plat/renesas/rcar/rcar_scmi_clocks.c
+			plat/renesas/rcar/rcar_scmi_clocks.c		\
+			plat/renesas/rcar/rcar_scmi_pinctrl.c
 endif
 
 BL31_SOURCES		+=	drivers/pinctrl/pinctrl.c
