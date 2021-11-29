@@ -360,6 +360,7 @@ include drivers/renesas/rcar/ddr/ddr.mk
 include drivers/renesas/rcar/qos/qos.mk
 include drivers/renesas/rcar/pfc/pfc.mk
 include lib/libfdt/libfdt.mk
+include drivers/renesas/rcar/pinctrl/pinctrl.mk
 
 PLAT_INCLUDES	:=	-Idrivers/renesas/rcar/ddr		\
 			-Idrivers/renesas/rcar/qos		\
@@ -454,6 +455,8 @@ BL31_SOURCES	+=	plat/renesas/rcar/rcar_scmi.c			\
 			plat/renesas/rcar/rcar_scmi_reset.c		\
 			plat/renesas/rcar/rcar_scmi_clocks.c
 endif
+
+BL31_SOURCES		+=	drivers/pinctrl/pinctrl.c
 
 ifeq (${RCAR_GEN3_ULCB},1)
 BL31_SOURCES		+=	drivers/renesas/rcar/cpld/ulcb_cpld.c
