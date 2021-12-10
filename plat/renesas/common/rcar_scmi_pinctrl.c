@@ -44,6 +44,8 @@ enum scmi_message_id {
 	PINCTRL_SET_CONFIG = 0x8,
 	PINCTRL_GET_CONFIG_GROUP = 0x9,
 	PINCTRL_SET_CONFIG_GROUP = 0xa,
+	PINCTRL_REQUEST_PIN = 0xb,
+	PINCTRL_FREE_PIN = 0xc,
 	SCMI_LAST_ID
 };
 
@@ -410,6 +412,53 @@ static uint32_t set_config_group(size_t channel __unused,
 	return sizeof(*status);
 }
 
+static uint32_t request_pin(size_t channel __unused,
+							volatile uint8_t *param,
+							size_t size __unused)
+{
+	uint32_t pin = *(uint32_t *)param;
+	int32_t *status = (int32_t *)param;
+	int ret;
+
+	if (size != sizeof(pin)) {
+		*status = SCMI_PROTOCOL_ERROR;
+		return sizeof(*status);
+	}
+
+	ret = pinctrl_request(pin);
+	if (ret) {
+		ERROR("scmi: pinctrl_request_pin failed with ret = %d\n", ret);
+		*status = SCMI_GENERIC_ERROR;
+		return sizeof(*status);
+	}
+
+	*status = SCMI_SUCCESS;
+	return sizeof(*status);
+}
+
+static uint32_t free_pin(size_t channel __unused, volatile uint8_t *param,
+						size_t size __unused)
+{
+	uint32_t pin = *(uint32_t *)param;
+	int32_t *status = (int32_t *)param;
+	int ret;
+
+	if (size != sizeof(pin)) {
+		*status = SCMI_PROTOCOL_ERROR;
+		return sizeof(*status);
+	}
+
+	ret = pinctrl_free(pin);
+	if (ret) {
+		ERROR("scmi: pinctrl_free_pin failed with ret = %d\n", ret);
+		*status = SCMI_GENERIC_ERROR;
+		return sizeof(*status);
+	}
+
+	*status = SCMI_SUCCESS;
+	return sizeof(*status);
+}
+
 typedef uint32_t (*pinctrl_handler_t)(size_t, volatile uint8_t*,size_t);
 
 static pinctrl_handler_t pinctrl_handlers[SCMI_LAST_ID] = {
@@ -424,6 +473,8 @@ static pinctrl_handler_t pinctrl_handlers[SCMI_LAST_ID] = {
 	[PINCTRL_SET_CONFIG] = set_config,
 	[PINCTRL_GET_CONFIG_GROUP] = get_config_group,
 	[PINCTRL_SET_CONFIG_GROUP] = set_config_group,
+	[PINCTRL_REQUEST_PIN] = request_pin,
+	[PINCTRL_FREE_PIN] = free_pin
 };
 
 
