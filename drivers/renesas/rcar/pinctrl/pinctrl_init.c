@@ -35,8 +35,8 @@ struct sh_pfc_pinctrl {
 static struct sh_pfc_pinctrl pmx;
 
 static int sh_pfc_get_group_pins (unsigned selector,
-										const unsigned **pins,
-										unsigned *num_pins)
+				  const unsigned **pins,
+				  unsigned *num_pins)
 {
 	*pins = pmx.pfc.info->groups[selector].pins;
 	*num_pins = pmx.pfc.info->groups[selector].nr_pins;
@@ -45,8 +45,8 @@ static int sh_pfc_get_group_pins (unsigned selector,
 }
 
 static int sh_pfc_get_function_groups (unsigned selector,
-										const int **groups,
-										unsigned *num_groups)
+				       const int **groups,
+				       unsigned *num_groups)
 {
 	*groups = pmx.pfc.info->functions[selector].groups;
 	*num_groups = pmx.pfc.info->functions[selector].nr_groups;
@@ -386,11 +386,14 @@ static int sh_pfc_get_pins(const struct pinctrl_pin **pins,
 
 static uint16_t sh_pfc_get_groups_count (void);
 static uint16_t sh_pfc_get_functions_count (void);
+static const char *sh_pfc_get_group_name(unsigned selector);
+static const char *sh_pfc_get_function_name(unsigned selector);
 
 static const pinctrl_ops_t ctrl_ops = {
-	.get_groups_count = sh_pfc_get_groups_count,
-	.get_group_pins = sh_pfc_get_group_pins,
-	.get_pins = sh_pfc_get_pins,
+        .get_groups_count = sh_pfc_get_groups_count,
+        .get_group_name = sh_pfc_get_group_name,
+        .get_group_pins = sh_pfc_get_group_pins,
+        .get_pins = sh_pfc_get_pins,
 };
 
 static const pinconf_ops_t conf_ops = {
@@ -401,6 +404,7 @@ static const pinconf_ops_t conf_ops = {
 
 static const pinmux_ops_t mux_ops = {
 	.get_functions_count = sh_pfc_get_functions_count,
+	.get_function_name = sh_pfc_get_function_name,
 	.get_function_groups = sh_pfc_get_function_groups,
 	.set_mux = sh_pfc_func_set_mux,
 };
@@ -410,9 +414,19 @@ static uint16_t sh_pfc_get_groups_count (void)
 	return pmx.pfc.info->nr_groups;
 }
 
+static const char *sh_pfc_get_group_name(unsigned selector)
+{
+  return pmx.pfc.info->groups[selector].name;
+}
+
 static uint16_t sh_pfc_get_functions_count (void)
 {
 	return pmx.pfc.info->nr_functions;
+}
+
+static const char *sh_pfc_get_function_name(unsigned selector)
+{
+	return pmx.pfc.info->functions[selector].name;
 }
 
 void rcar_pinctrl_init(void)

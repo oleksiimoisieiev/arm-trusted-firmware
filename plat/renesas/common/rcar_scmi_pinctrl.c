@@ -33,18 +33,19 @@
 #include "rcar_scmi_resources.h"
 
 enum scmi_message_id {
-	PROTOCOL_VERSION = 0x0,
-	PROTOCOL_ATTRIBUTES,
-	PROTOCOL_MESSAGE_ATTRIBUTES,
-	PINCTRL_GET_GROUP_PINS = 0x3,
-	PINCTRL_GET_FUNCTION_GROUPS = 0x4,
-	PINCTRL_SET_MUX = 0x5,
-	PINCTRL_GET_PINS = 0x6,
-	PINCTRL_GET_CONFIG = 0x7,
-	PINCTRL_SET_CONFIG = 0x8,
-	PINCTRL_GET_CONFIG_GROUP = 0x9,
-	PINCTRL_SET_CONFIG_GROUP = 0xa,
-	SCMI_LAST_ID
+  PROTOCOL_VERSION = 0x0,
+  PROTOCOL_ATTRIBUTES,
+  PROTOCOL_MESSAGE_ATTRIBUTES,
+  PINCTRL_ATTRIBUTES = 0x3,
+  PINCTRL_LIST_ASSOCIATIONS = 0x4,
+  PINCTRL_CONFIG_GET = 0x5,
+  PINCTRL_CONFIG_SET = 0x6,
+  PINCTRL_FUNCTION_SELECT = 0x7,
+  PINCTRL_REQUEST = 0x8,
+  PINCTRL_RELEASE = 0x9,
+  PINCTRL_NAME_GET = 0xa,
+  PINCTRL_SET_PERMISSIONS = 0xb,
+  SCMI_LAST_ID
 };
 
 static const struct scmi_pinctrl default_device = {
@@ -64,7 +65,7 @@ static uint32_t protocol_version(size_t channel __unused,
 	uint32_t *version = (uint32_t*)(param + sizeof(*status));
 	*status = SCMI_SUCCESS;
 	*version = 0x10000;
-	VERBOSE("scmi: Process pinctrl protocol_version\n");
+	WARN("scmi: Process pinctrl protocol_version\n");
 	return sizeof(*status) + sizeof(*version);
 }
 
@@ -72,18 +73,34 @@ static uint32_t protocol_attrs(size_t channel __unused,
 			       volatile uint8_t *param,
 			       size_t size __unused)
 {
-	int32_t *status = (int32_t*)param;
-	uint32_t *attrs = (uint32_t*)(param + sizeof(*status));
+	struct attrs_rx {
+		int32_t status;
+		uint32_t attrs_low;
+		uint32_t attrs_high;
+	} *rx = (struct attrs_rx *)param;
+
+	const struct pinctrl_pin *pins;
+	unsigned nr_pins;
+	int ret;
+
 	uint16_t nr_groups = pinctrl_get_groups_count();
 	uint16_t nr_functions = pinctrl_get_functions_count();
 
-	*status = SCMI_SUCCESS;
-	*attrs = FLD(GENMASK(31, 16), nr_groups) |
-		 FLD(GENMASK(15,  0), nr_functions);
+	ret = pinctrl_get_pins(&pins, &nr_pins);
+	if (ret) {
+		ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret);
+		rx->status = SCMI_GENERIC_ERROR;
+		return sizeof(rx->status);
+	};
 
-	VERBOSE("scmi: Process pinctrl protocol_attrs group_max = %d, func_max = %d\n",
-			nr_groups, nr_functions);
-	return sizeof(*status) + sizeof(*attrs);
+	rx->status = SCMI_SUCCESS;
+	rx->attrs_low = FLD(GENMASK(31, 16), nr_groups) |
+		 FLD(GENMASK(15,  0), nr_pins);
+	rx->attrs_high = FLD(GENMASK(15, 0), nr_functions);
+
+	WARN("scmi: Process pinctrl protocol_attrs group_max = %d, func_max = %d nr_pins = %d\n",
+	     nr_groups, nr_functions, nr_pins);
+	return sizeof(*rx);
 }
 
 static uint32_t protocol_msg_attrs(size_t channel __unused,
@@ -103,24 +120,122 @@ static uint32_t protocol_msg_attrs(size_t channel __unused,
 	*status = SCMI_SUCCESS;
 	*attrs = 0x0;
 
-	VERBOSE("scmi: Process pinctrl protocol_msg_attrs\n");
+	WARN("scmi: Process pinctrl protocol_msg_attrs\n");
 
 	return sizeof(*status) + sizeof(*attrs);
 }
 
-static uint32_t get_group_pins(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
+struct pin_attrs_rx {
+	int32_t status;
+	uint32_t attributes;
+	char name[16];
+};
+
+static int set_rx(struct pin_attrs_rx *rx, const char *name, unsigned n_elems)
 {
-	struct pins_tx {
-		uint16_t selector;
-		uint16_t skip;
-	} tx = *(struct pins_tx *)param;
-	struct pins_rx {
-		int32_t status;
-		uint32_t nr_pins;
-		uint16_t pins[];
-	} *rx = (struct pins_rx *)param;
+	assert(name != NULL);
+
+	rx->attributes = FLD(GENMASK(15, 0), n_elems);
+	if (sizeof(name) > sizeof(rx->name))
+		rx->attributes |= FLD(31, 1);
+	else
+		strlcpy(rx->name, name, sizeof(rx->name));
+
+	return SCMI_SUCCESS;
+}
+
+static uint32_t scmi_pinctrl_attributes(size_t channel __unused,
+                                   volatile uint8_t *param, size_t size)
+{
+	struct pin_attrs_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct pin_attrs_tx *)param;
+	struct pin_attrs_rx *rx = (struct pin_attrs_rx *)param;
+	unsigned nelems;
+	unsigned nr_pins;
+	const struct pinctrl_pin *pins;
+	uint32_t selector = tx.identifier;
+	int ret;
+	const unsigned *groups;
+	const int *funcs;
+
+	WARN("scmi: pinctrl_attributes id = %d flags = %d\n", tx.identifier,
+		 tx.flags);
+
+	if (size != sizeof(tx) || (tx.flags > 2)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	switch (tx.flags) {
+	case 0:
+		ret = pinctrl_get_pins(&pins, &nr_pins);
+		if (ret || selector > nr_pins) {
+			ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		};
+		rx->status = set_rx(rx, pins[selector].name, nr_pins);
+		break;
+	case 1:
+		//group
+		if (selector > pinctrl_get_groups_count()) {
+			ERROR("scmi: pinctrl_get_groups_count failed with sel = %d\n", selector);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		};
+
+                ret = pinctrl_get_group_pins(selector, &groups, &nelems);
+		if (ret) {
+			ERROR("scmi: pinctrl_get_group_pins failed with ret = %d\n", ret);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		}
+
+		rx->status = set_rx(rx, pinctrl_get_group_name(selector), nelems);
+		break;
+	case 2:
+		// function
+		if (selector > pinctrl_get_functions_count()) {
+			ERROR("scmi: pinctrl_get_functions_count failed with sel = %d\n",
+				  selector);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		};
+
+		ret = pinctrl_get_function_groups(selector, &funcs, &nelems);
+		if (ret) {
+			ERROR("scmi: pinctrl_get_fucntion_groups failed with ret = %d\n", ret);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		}
+
+		rx->status = set_rx(rx, pinctrl_get_function_name(selector), nelems);
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	return sizeof(*rx);
+}
+
+struct pin_assoc_tx {
+	uint32_t identifier;
+	uint32_t flags;
+	uint32_t index;
+};
+
+struct pin_assoc_rx {
+	int32_t status;
+	uint32_t flags;
+	uint16_t array[];
+};
+
+static uint32_t get_group_pins(struct pin_assoc_tx *tx,
+                               struct pin_assoc_rx *rx)
+{
 	uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx);
 	int counter = 0, lcounter = 0;
 
@@ -128,98 +243,42 @@ static uint32_t get_group_pins(size_t channel __unused,
 	unsigned nr_pins;
 	int ret;
 
-	VERBOSE("scmi: pinctrl get_group_pins sel = %d skip = %d\n", tx.selector, tx.skip);
-	if (size != sizeof(tx)) {
-		rx->status = SCMI_PROTOCOL_ERROR;
-		return sizeof(rx->status);
-	}
+	WARN("scmi: pinctrl get_group_pins sel = %d skip = %d\n", tx->identifier,
+		 tx->index);
 
-	ret = pinctrl_get_group_pins(tx.selector, &pins, &nr_pins);
+	ret = pinctrl_get_group_pins(tx->identifier, &pins, &nr_pins);
 	if (ret) {
 		ERROR("scmi: pinctrl_get_group_pins failed with ret = %d\n", ret);
 		rx->status = SCMI_GENERIC_ERROR;
 		return sizeof(rx->status);
 	}
+	//todo amoi sort pins asc
 
-	for (counter = tx.skip; counter < nr_pins; counter++, lcounter++) {
+	for (counter = tx->index; counter < nr_pins; counter++, lcounter++) {
 		if (lcounter * sizeof(uint16_t) >= max_payload_size) {
 			break;
 		}
 
-		rx->pins[lcounter] = pins[counter];
-		VERBOSE("group pins [%d] = %d\n", lcounter, pins[counter]);
+		rx->array[lcounter] = pins[counter];
+		WARN("group pins [%d] = %d\n", lcounter, rx->array[lcounter]);
+		WARN("arr addr = %llx\n", (uint64_t)(&rx->array[lcounter]));
 	}
 
-	rx->nr_pins = lcounter;
-	VERBOSE("scmi: pinctrl get nr_pins= %d\n", rx->nr_pins);
+	rx->flags = FLD(GENMASK(31, 16), nr_pins - counter) |
+		FLD(GENMASK(11, 0), lcounter);
+	WARN("scmi: pinctrl get nr_pins= %d cnt returned = %d sz=%zi\n", nr_pins,
+	     lcounter,
+	     sizeof(*rx) +
+	     ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t)));
 	rx->status = SCMI_SUCCESS;
 
 	return sizeof(*rx) +
 		ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t));
 }
 
-static uint32_t get_pins(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
+static uint32_t get_function_groups(struct pin_assoc_tx *tx,
+                                    struct pin_assoc_rx *rx)
 {
-	uint32_t skip = *(uint32_t *)param;
-	struct pins_rx {
-		int32_t status;
-		uint32_t nr_pins;
-		uint16_t pins[];
-	} *rx = (struct pins_rx *)param;
-	uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx);
-	int counter = 0, lcounter = 0;
-
-	const struct pinctrl_pin *pins;
-	unsigned nr_pins;
-	int ret;
-
-	VERBOSE("scmi: pinctrl get_pins skip = %d\n", skip);
-	if (size != sizeof(skip)) {
-		rx->status = SCMI_PROTOCOL_ERROR;
-		return sizeof(rx->status);
-	}
-
-	ret = pinctrl_get_pins(&pins, &nr_pins);
-	if (ret) {
-		ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret);
-		rx->status = SCMI_GENERIC_ERROR;
-		return sizeof(rx->status);
-	};
-
-	VERBOSE("max_payload_size = %d\n", max_payload_size);
-
-	for (counter = skip; counter < nr_pins; counter++, lcounter++) {
-		const struct pinctrl_pin *info = &pins[counter];
-		if (lcounter * sizeof(uint16_t) >= max_payload_size) {
-			break;
-		}
-
-		rx->pins[lcounter] = info->pin != (uint16_t)-1 ? info->pin : counter;
-	}
-
-	rx->nr_pins = lcounter;
-	VERBOSE("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins);
-	rx->status = SCMI_SUCCESS;
-
-	return sizeof(*rx) +
-		ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t));
-}
-
-static uint32_t get_function_groups(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
-{
-	struct groups_tx {
-		uint16_t selector;
-		uint16_t skip;
-	} tx = *(struct groups_tx *)param;
-	struct groups_rx {
-		int32_t status;
-		uint32_t nr_groups;
-		uint16_t groups[];
-	} *rx = (struct groups_rx *)param;
 	uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx);
 	int counter = 0, lcounter = 0;
 
@@ -227,57 +286,279 @@ static uint32_t get_function_groups(size_t channel __unused,
 	unsigned nr_groups;
 	int ret;
 
-	VERBOSE("scmi: pinctrl get_func_groups sel = %d skip = %d\n", tx.selector, tx.skip);
-	if (size != sizeof(tx)) {
-		rx->status = SCMI_PROTOCOL_ERROR;
-		return sizeof(rx->status);
-	}
+	WARN("scmi: pinctrl get_func_groups sel = %d skip = %d\n", tx->identifier,
+		 tx->index);
 
-	ret = pinctrl_get_function_groups(tx.selector, &groups, &nr_groups);
+	ret = pinctrl_get_function_groups(tx->identifier, &groups, &nr_groups);
 	if (ret) {
 		ERROR("scmi: pinctrl_get_fucntion_groups failed with ret = %d\n", ret);
 		rx->status = SCMI_GENERIC_ERROR;
 		return sizeof(rx->status);
 	}
-
-	for (counter = tx.skip; counter < nr_groups; counter++, lcounter++) {
+	// TODO amoi sort groups
+	for (counter = tx->index; counter < nr_groups; counter++, lcounter++) {
 		if (lcounter * sizeof(uint16_t) >= max_payload_size) {
 			break;
 		}
 
-		rx->groups[lcounter] = groups[counter];
-		VERBOSE("func groups [%d] = %d\n", lcounter, groups[counter]);
+		rx->array[lcounter] = groups[counter];
+		WARN("func groups [%d] = %d\n", lcounter, groups[counter]);
 	}
 
-	rx->nr_groups = lcounter;
-	VERBOSE("scmi: pinctrl get nr_groups= %d\n", rx->nr_groups);
+	rx->flags = FLD(GENMASK(31, 16), nr_groups - counter) |
+		FLD(GENMASK(11, 0), lcounter);
+
+	WARN("scmi: pinctrl get nr_groups= %d cnt returned = %d\n", nr_groups,
+		 lcounter);
 	rx->status = SCMI_SUCCESS;
 
 	return sizeof(*rx) +
 		ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t));
-
 };
 
-static uint32_t set_mux(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
+static uint32_t scmi_list_associations(size_t channel __unused,
+				  volatile uint8_t *param, size_t size __unused)
 {
+	struct pin_assoc_tx tx = *(struct pin_assoc_tx *)param;
+	struct pin_assoc_rx *rx = (struct pin_assoc_rx *)param;
+	int rc = 0;
+
+	WARN("scmi: pinctrl_list_assoc id = %d flags = %d idx = %d\n", tx.identifier,
+		tx.flags, tx.index);
+
+	if (size != sizeof(tx) || (tx.flags > 2)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	switch (tx.flags) {
+	case 1:
+		//groups
+		rc = get_group_pins(&tx, rx);
+		break;
+	case 2:
+		//function
+		rc = get_function_groups(&tx, rx);
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	return rc;
+}
+
+struct config_tx {
+	uint32_t identifier;
+	uint32_t attributes;
+};
+struct config_rx {
+	int32_t status;
+	uint32_t config_value;
+};
+
+static inline uint32_t pinconf_to_config_argument(unsigned long config)
+{
+	return (uint32_t) ((config >> 8) & 0xffffffUL);
+}
+
+#define PIN_CONF_PACKED(p, a) ((a << 8) | ((unsigned long)p & 0xffUL))
+
+static uint32_t get_config(struct config_tx *tx, struct config_rx *rx)
+{
+	int ret;
+	unsigned long config_param;
+	unsigned long config;
+
+	config_param = FLD(GENMASK(7, 0), tx->attributes);
+	WARN("get_config id = %d, config_type = %ld\n", tx->identifier, config_param);
+
+	config = PIN_CONF_PACKED(config_param, 0);
+
+	ret = pinctrl_config_get(tx->identifier, &config);
+	if (ret) {
+		ERROR("scmi: pinctrl_config_get failed with ret = %d\n", ret);
+		rx->status = SCMI_GENERIC_ERROR;
+		return sizeof(rx->status);
+	}
+
+	rx->config_value = pinconf_to_config_argument(config);
+	WARN("get_config id = %d, config_value = %d\n", tx->identifier, rx->config_value);
+
+	rx->status = SCMI_SUCCESS;
+	return sizeof(*rx);
+}
+
+static uint32_t get_config_group(struct config_tx *tx, struct config_rx *rx)
+{
+	int ret;
+	unsigned long config_param;
+	unsigned long config;
+
+	config_param = FLD(GENMASK(7, 0), tx->attributes);
+	WARN("get_config_group id = %d, config = %ld\n", tx->identifier, config_param);
+
+        config = PIN_CONF_PACKED(config_param, 0);
+
+	ret = pinctrl_config_group_get(tx->identifier, &config);
+	if (ret) {
+		ERROR("scmi: pinctrl_config_group_get failed with ret = %d\n", ret);
+		rx->status = SCMI_GENERIC_ERROR;
+		return sizeof(rx->status);
+	}
+
+	rx->config_value = pinconf_to_config_argument(config_param);
+	WARN("get_config id = %d, config_value = %d\n", tx->identifier, rx->config_value);
+
+	rx->status = SCMI_SUCCESS;
+	return sizeof(*rx);
+}
+
+static uint32_t scmi_config_get(size_t channel __unused,
+           volatile uint8_t *param, size_t size __unused)
+{
+	struct config_tx tx = *(struct config_tx *)param;
+	struct config_rx *rx = (struct config_rx *)param;
+	int rc = 0;
+	int selector;
+
+	WARN("scmi: config_get id = %d attribs = %d\n", tx.identifier,
+		 tx.attributes);
+
+	if (size != sizeof(tx)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	selector = FLD_GET(GENMASK(9, 8), tx.attributes);
+
+	switch (selector) {
+	case 0:
+		// pin
+		rc = get_config(&tx, rx);
+		break;
+	case 1:
+		// group
+		rc = get_config_group(&tx, rx);
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	return rc;
+}
+
+struct config_set_tx {
+	uint32_t identifier;
+	uint32_t attributes;
+	uint32_t config_value;
+};
+
+struct config_set_rx {
+	int32_t status;
+};
+
+static uint32_t set_config(struct config_set_tx *tx, struct config_set_rx *rx)
+{
+	int ret;
+	unsigned long config_param;
+
+	config_param = FLD(GENMASK(7, 0), tx->attributes);
+
+	ret = pinctrl_config_set(tx->identifier,
+				 PIN_CONF_PACKED(config_param, tx->config_value));
+	if (ret) {
+		ERROR("scmi: pinctrl_config_set failed with ret = %d\n", ret);
+		rx->status = SCMI_GENERIC_ERROR;
+		return sizeof(rx->status);
+	}
+
+	rx->status = SCMI_SUCCESS;
+	return sizeof(*rx);
+}
+
+static uint32_t set_config_group(struct config_set_tx *tx, struct config_set_rx *rx)
+{
+	int ret;
+	unsigned long config_param;
+
+	config_param = FLD(GENMASK(7, 0), tx->attributes);
+
+	ret = pinctrl_config_group_set(tx->identifier,
+				       PIN_CONF_PACKED(config_param, tx->config_value));
+	if (ret) {
+		ERROR("scmi: pinctrl_config_group_set failed with ret = %d\n", ret);
+		rx->status = SCMI_GENERIC_ERROR;
+		return sizeof(rx->status);
+	}
+
+	rx->status = SCMI_SUCCESS;
+	return sizeof(*rx);
+}
+
+static uint32_t scmi_config_set(size_t channel __unused,
+                                volatile uint8_t *param, size_t size __unused)
+{
+	struct config_set_tx tx = *(struct config_set_tx *)param;
+	struct config_set_rx *rx = (struct config_set_rx *)param;
+	int rc = 0;
+	int selector;
+
+	WARN("scmi: config_set id = %d attribs = %d\n", tx.identifier, tx.attributes);
+
+	if (size != sizeof(tx)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	selector = FLD_GET(GENMASK(9, 8), tx.attributes);
+
+	switch (selector) {
+	case 0:
+		// pin
+		rc = set_config(&tx, rx);
+		break;
+	case 1:
+		// group
+		rc = set_config_group(&tx, rx);
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	return rc;
+}
+
+//former set_mux
+static uint32_t scmi_function_select(size_t channel __unused,
+                                     volatile uint8_t *param,
+                                     size_t size __unused)
+{ //done not tested
 	struct mux_tx {
-		uint16_t function;
-		uint16_t group;
+		uint32_t identifier;
+		uint32_t function_id;
+		uint32_t flags;
 	} tx = *(struct mux_tx *)param;
 	int32_t *status = (int32_t *)param;
 	int ret;
 
-	VERBOSE("scmi:pinctrl set mux func = %d, group = %d\n", tx.function,
-		 tx.group);
+	WARN("scmi:pinctrl set mux id = %d, func = %d flags = %d\n",
+		 tx.identifier, tx.function_id, tx.flags);
 
 	if (size != sizeof(tx)) {
 		*status = SCMI_PROTOCOL_ERROR;
 		return sizeof(*status);
 	}
 
-	ret = pinctrl_set_mux(tx.function, tx.group);
+	if (tx.flags == 0) {
+		WARN("Set function to pin is not supported\n");
+		*status = SCMI_NOT_SUPPORTED;
+		return sizeof(*status);
+	}
+
+	ret = pinctrl_set_mux(tx.function_id, tx.identifier);
 	if (ret) {
 		ERROR("scmi: pinctrl_set_mux failed with ret = %d\n", ret);
 		*status = SCMI_GENERIC_ERROR;
@@ -288,48 +569,13 @@ static uint32_t set_mux(size_t channel __unused,
 	return sizeof(*status);
 }
 
-static uint32_t get_config(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
-{
-	struct conf_tx {
-		uint32_t pin;
-		uint32_t config;
-	} tx = *(struct conf_tx *) param;
-	struct conf_rx {
-		int32_t status;
-		uint32_t config;
-	} *rx = (struct conf_rx *)param;
-	int ret;
-	unsigned long config_param;
-
-	if (size != sizeof(tx)) {
-		rx->status = SCMI_PROTOCOL_ERROR;
-		return sizeof(rx->status);
-	}
-
-	config_param = tx.config;
-
-	ret = pinctrl_config_get(tx.pin, &config_param);
-	if (ret) {
-		ERROR("scmi: pinctrl_config_get failed with ret = %d\n", ret);
-		rx->status = SCMI_GENERIC_ERROR;
-		return sizeof(rx->status);
-	}
-
-	rx->config = config_param;
-	rx->status = SCMI_SUCCESS;
-	return sizeof(*rx);
-}
-
-static uint32_t set_config(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
-{
-	struct conf_tx {
-		uint32_t pin;
-		uint32_t config;
-	} tx = *(struct conf_tx *) param;
+static uint32_t scmi_request(size_t channel __unused, volatile uint8_t *param,
+                            size_t size __unused)
+{ //done not tested
+	struct request_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct request_tx *)param;
 	int32_t *status = (int32_t *)param;
 	int ret;
 
@@ -338,59 +584,30 @@ static uint32_t set_config(size_t channel __unused,
 		return sizeof(*status);
 	}
 
-	ret = pinctrl_config_set(tx.pin, tx.config);
-	if (ret) {
-		ERROR("scmi: pinctrl_config_set failed with ret = %d\n", ret);
-		*status = SCMI_GENERIC_ERROR;
+	if (tx.flags != 0) {
+		WARN("Only pin request is supported\n");
+		*status = SCMI_DENIED;
 		return sizeof(*status);
 	}
 
+	ret = pinctrl_request(tx.identifier);
+	if (ret) {
+		ERROR("scmi: pinctrl_request_pin failed with ret = %d\n", ret);
+		*status = SCMI_INVALID_PARAMETERS;
+		return sizeof(*status);
+	}
+	//TODO amoi check all returns according to spec
 	*status = SCMI_SUCCESS;
 	return sizeof(*status);
 }
 
-static uint32_t get_config_group(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
-{
-	struct conf_tx {
-		uint32_t selector;
-		uint32_t config;
-	} tx = *(struct conf_tx *) param;
-	struct conf_rx {
-		int32_t status;
-		uint32_t config;
-	} *rx = (struct conf_rx *)param;
-	int ret;
-	unsigned long config_param;
-
-	if (size != sizeof(tx)) {
-		rx->status = SCMI_PROTOCOL_ERROR;
-		return sizeof(rx->status);
-	}
-
-	config_param = tx.config;
-
-	ret = pinctrl_config_group_get(tx.selector, &config_param);
-	if (ret) {
-		ERROR("scmi: pinctrl_config_group_get failed with ret = %d\n", ret);
-		rx->status = SCMI_GENERIC_ERROR;
-		return sizeof(rx->status);
-	}
-
-	rx->config = config_param;
-	rx->status = SCMI_SUCCESS;
-	return sizeof(*rx);
-}
-
-static uint32_t set_config_group(size_t channel __unused,
-			       volatile uint8_t *param,
-			       size_t size __unused)
-{
-	struct conf_tx {
-		uint32_t selector;
-		uint32_t config;
-	} tx = *(struct conf_tx *) param;
+static uint32_t scmi_release(size_t channel __unused, volatile uint8_t *param,
+                             size_t size __unused)
+{ //done not tested
+	struct release_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct release_tx *)param;
 	int32_t *status = (int32_t *)param;
 	int ret;
 
@@ -399,9 +616,15 @@ static uint32_t set_config_group(size_t channel __unused,
 		return sizeof(*status);
 	}
 
-	ret = pinctrl_config_group_set(tx.selector, tx.config);
+	if (tx.flags != 0) {
+		WARN("Only pin request is supported\n");
+		*status = SCMI_DENIED;
+		return sizeof(*status);
+	}
+
+	ret = pinctrl_free(tx.identifier);
 	if (ret) {
-		ERROR("scmi: pinctrl_config_group_set failed with ret = %d\n", ret);
+		ERROR("scmi: pinctrl_free_pin failed with ret = %d\n", ret);
 		*status = SCMI_GENERIC_ERROR;
 		return sizeof(*status);
 	}
@@ -410,22 +633,138 @@ static uint32_t set_config_group(size_t channel __unused,
 	return sizeof(*status);
 }
 
-typedef uint32_t (*pinctrl_handler_t)(size_t, volatile uint8_t*,size_t);
+static uint32_t scmi_name_get(size_t channel __unused, volatile uint8_t *param,
+                             size_t size __unused)
+{
+	struct name_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct name_tx *)param;
+	struct name_rx {
+		int32_t status;
+		uint32_t flags;
+		char name[64];
+	} *rx = (struct name_rx *)param;
+	int ret;
+	unsigned nr_pins;
+	const struct pinctrl_pin *pins;
+
+	WARN("scmi: pinctrl_name_get id = %d flags = %d\n", tx.identifier,
+		 tx.flags);
+
+	if (size != sizeof(tx) || (tx.flags > 2)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	switch (tx.flags) {
+	case 0: //pin
+		ret = pinctrl_get_pins(&pins, &nr_pins);
+		if (ret) {
+			ERROR("scmi_name_get: unable to get pins: %d\n", ret);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		}
+
+		strlcpy(rx->name, pins[tx.identifier].name, sizeof(rx->name));
+		break;
+	case 1: //group
+		strlcpy(rx->name, pinctrl_get_group_name(tx.identifier), sizeof(rx->name));
+		break;
+	case 2: //function
+		strlcpy(rx->name, pinctrl_get_function_name(tx.identifier),
+                  sizeof(rx->name));
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
+
+	rx->status = SCMI_SUCCESS;
+	rx->flags = 0;
+	return sizeof(*rx);
+}
+
+static uint32_t scmi_set_permissions(size_t channel __unused, volatile uint8_t *param,
+                         size_t size __unused)
+{
+	struct perms_tx {
+		uint32_t agent_id;
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct perms_tx *)param;
+	int32_t *status = (int32_t *)param;
+
+	WARN("set permissions agent_id %d, id= %d, flags = %d\n", tx.agent_id,
+		 tx.identifier, tx.flags);
+	*status = SCMI_NOT_SUPPORTED;
+	return sizeof(*status);
+}
+
+//====== end if impl
+  /* static uint32_t get_pins(size_t channel __unused, volatile uint8_t * param, */
+  /*                          size_t size __unused) { */
+  /*   uint32_t skip = *(uint32_t *)param; */
+  /*   struct pins_rx { */
+  /*     int32_t status; */
+  /*     uint32_t nr_pins; */
+  /*     uint16_t pins[]; */
+  /*   } *rx = (struct pins_rx *)param; */
+  /*   uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx); */
+  /*   int counter = 0, lcounter = 0; */
+
+  /*   const struct pinctrl_pin *pins; */
+  /*   unsigned nr_pins; */
+  /*   int ret; */
+
+  /*   WARN("scmi: pinctrl get_pins skip = %d\n", skip); */
+  /*   if (size != sizeof(skip)) { */
+  /*     rx->status = SCMI_PROTOCOL_ERROR; */
+  /*     return sizeof(rx->status); */
+  /*   } */
+
+  /*   ret = pinctrl_get_pins(&pins, &nr_pins); */
+  /*   if (ret) { */
+  /*     ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret); */
+  /*     rx->status = SCMI_GENERIC_ERROR; */
+  /*     return sizeof(rx->status); */
+  /*   }; */
+
+  /*   WARN("max_payload_size = %d\n", max_payload_size); */
+
+  /*   for (counter = skip; counter < nr_pins; counter++, lcounter++) { */
+  /*     const struct pinctrl_pin *info = &pins[counter]; */
+  /*     if (lcounter * sizeof(uint16_t) >= max_payload_size) { */
+  /*       break; */
+  /*     } */
+
+  /*     rx->pins[lcounter] = info->pin != (uint16_t)-1 ? info->pin : counter; */
+  /*   } */
+
+  /*   rx->nr_pins = lcounter; */
+  /*   WARN("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins); */
+  /*   rx->status = SCMI_SUCCESS; */
+
+  /*   return sizeof(*rx) + */
+  /*          ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t)); */
+  /* } */
+
+typedef uint32_t (*pinctrl_handler_t)(size_t, volatile uint8_t *, size_t);
 
 static pinctrl_handler_t pinctrl_handlers[SCMI_LAST_ID] = {
-	[PROTOCOL_VERSION] = protocol_version,
-	[PROTOCOL_ATTRIBUTES] = protocol_attrs,
-	[PROTOCOL_MESSAGE_ATTRIBUTES] = protocol_msg_attrs,
-	[PINCTRL_GET_GROUP_PINS] = get_group_pins,
-	[PINCTRL_GET_FUNCTION_GROUPS] = get_function_groups,
-	[PINCTRL_SET_MUX] = set_mux,
-	[PINCTRL_GET_PINS] = get_pins,
-	[PINCTRL_GET_CONFIG] = get_config,
-	[PINCTRL_SET_CONFIG] = set_config,
-	[PINCTRL_GET_CONFIG_GROUP] = get_config_group,
-	[PINCTRL_SET_CONFIG_GROUP] = set_config_group,
+    [PROTOCOL_VERSION] = protocol_version,
+    [PROTOCOL_ATTRIBUTES] = protocol_attrs,
+    [PROTOCOL_MESSAGE_ATTRIBUTES] = protocol_msg_attrs,
+    [PINCTRL_ATTRIBUTES] = scmi_pinctrl_attributes,
+    [PINCTRL_LIST_ASSOCIATIONS] = scmi_list_associations,
+    [PINCTRL_CONFIG_GET] = scmi_config_get,
+    [PINCTRL_CONFIG_SET] = scmi_config_set,
+    [PINCTRL_FUNCTION_SELECT] = scmi_function_select,
+    [PINCTRL_REQUEST] = scmi_request,
+    [PINCTRL_RELEASE] = scmi_release,
+    [PINCTRL_NAME_GET] = scmi_name_get,
+    [PINCTRL_SET_PERMISSIONS] = scmi_set_permissions
 };
-
 
 uint32_t rcar_scmi_handle_pinctrl(size_t channel, uint8_t cmd,
 					volatile uint8_t *param, size_t size)

@@ -21,16 +21,26 @@ static const pinmux_ops_t *mux_ops_g;
 uint16_t pinctrl_get_groups_count(void)
 {
 	assert(ctrl_ops_g);
-	assert(ctrl_ops_g->get_groups_count != 0);
+	if (!ctrl_ops_g->get_groups_count)
+		return 0;
 
 	return ctrl_ops_g->get_groups_count();
+}
+
+const char *pinctrl_get_group_name(unsigned selector) {
+  assert(ctrl_ops_g);
+  if (!ctrl_ops_g->get_group_name)
+    return 0;
+
+  return ctrl_ops_g->get_group_name(selector);
 }
 
 int pinctrl_get_group_pins(unsigned selector, const unsigned **pins,
 					 unsigned *num_pins)
 {
 	assert(ctrl_ops_g);
-	assert(ctrl_ops_g->get_group_pins != 0);
+	if (!ctrl_ops_g->get_group_pins != 0)
+		return 0;
 
 	return ctrl_ops_g->get_group_pins(selector, pins, num_pins);
 }
@@ -38,7 +48,8 @@ int pinctrl_get_group_pins(unsigned selector, const unsigned **pins,
 int pinctrl_get_pins(const struct pinctrl_pin **pins, unsigned *num_pins)
 {
 	assert(ctrl_ops_g);
-	assert(ctrl_ops_g->get_pins != 0);
+	if (!ctrl_ops_g->get_pins)
+		return 0;
 
 	return ctrl_ops_g->get_pins(pins, num_pins);
 }
@@ -46,16 +57,26 @@ int pinctrl_get_pins(const struct pinctrl_pin **pins, unsigned *num_pins)
 uint16_t pinctrl_get_functions_count(void)
 {
 	assert(mux_ops_g);
-	assert(mux_ops_g->get_functions_count != 0);
+	if (!mux_ops_g->get_functions_count)
+		return 0;
 
 	return mux_ops_g->get_functions_count();
 }
 
+const char *pinctrl_get_function_name(unsigned selector)
+{
+  assert(mux_ops_g);
+  if (!mux_ops_g->get_function_name)
+    return 0;
+
+  return mux_ops_g->get_function_name(selector);
+}
 int pinctrl_get_function_groups(unsigned selector, const int **groups,
 			  unsigned *num_groups)
 {
 	assert(mux_ops_g);
-	assert(mux_ops_g->get_function_groups != 0);
+	if (!mux_ops_g->get_function_groups)
+		return 0;
 
 	return mux_ops_g->get_function_groups(selector, groups, num_groups);
 }
@@ -63,7 +84,8 @@ int pinctrl_get_function_groups(unsigned selector, const int **groups,
 int pinctrl_config_get(unsigned pin, unsigned long *config)
 {
 	assert(conf_ops_g);
-	assert(conf_ops_g->pin_config_get);
+	if (!conf_ops_g->pin_config_get)
+		return 0;
 
 	return conf_ops_g->pin_config_get(pin, config);
 }
@@ -71,7 +93,8 @@ int pinctrl_config_get(unsigned pin, unsigned long *config)
 int pinctrl_config_set(unsigned pin, unsigned long config)
 {
 	assert(conf_ops_g);
-	assert(conf_ops_g->pin_config_set);
+	if (!conf_ops_g->pin_config_set)
+		return 0;
 
 	return conf_ops_g->pin_config_set(pin, config);
 }
@@ -79,7 +102,8 @@ int pinctrl_config_set(unsigned pin, unsigned long config)
 int pinctrl_config_group_get(unsigned selector, unsigned long *config)
 {
 	assert(conf_ops_g);
-	assert(conf_ops_g->pin_config_group_get);
+	if (!conf_ops_g->pin_config_group_get)
+		return 0;
 
 	return conf_ops_g->pin_config_group_get(selector, config);
 }
@@ -87,7 +111,8 @@ int pinctrl_config_group_get(unsigned selector, unsigned long *config)
 int pinctrl_config_group_set(unsigned selector, unsigned long config)
 {
 	assert(conf_ops_g);
-	assert(conf_ops_g->pin_config_group_set);
+	if (!conf_ops_g->pin_config_group_set)
+		return 0;
 
 	return conf_ops_g->pin_config_group_set(selector, config);
 }
@@ -95,7 +120,8 @@ int pinctrl_config_group_set(unsigned selector, unsigned long config)
 int pinctrl_set_mux(unsigned func_selector, unsigned group_selector)
 {
 	assert(mux_ops_g);
-	assert(mux_ops_g->set_mux != 0);
+	if (!mux_ops_g->set_mux)
+		return 0;
 
 	return mux_ops_g->set_mux(func_selector, group_selector);
 }
@@ -103,7 +129,8 @@ int pinctrl_set_mux(unsigned func_selector, unsigned group_selector)
 int pinctrl_request(unsigned offset)
 {
 	assert(mux_ops_g);
-	assert(mux_ops_g->request != 0);
+	if (!mux_ops_g->request)
+		return 0;
 
 	return mux_ops_g->request(offset);
 }
@@ -111,7 +138,9 @@ int pinctrl_request(unsigned offset)
 int pinctrl_free(unsigned offset)
 {
 	assert(mux_ops_g);
-	assert(mux_ops_g->free != 0);
+	if (!mux_ops_g->free)
+		return 0;
+
 	return mux_ops_g->free(offset);
 }
 
