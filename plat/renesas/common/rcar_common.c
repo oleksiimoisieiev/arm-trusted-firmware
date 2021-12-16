@@ -95,7 +95,7 @@ void rcar_console_runtime_init(void)
 	if (!ret)
 		panic();
 
-	console_set_scope(&rcar_boot_console, CONSOLE_FLAG_RUNTIME);
+	console_set_scope(&rcar_runtime_console, CONSOLE_FLAG_RUNTIME);
 }
 
 void rcar_console_runtime_end(void)
