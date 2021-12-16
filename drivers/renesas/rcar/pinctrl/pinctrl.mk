@@ -11,7 +11,7 @@ else
     BL31_SOURCES += drivers/renesas/rcar/pinctrl/pfc-r8a77951.c
   endif
   ifeq (${RCAR_LSI},${RCAR_M3})
-    BL31_SOURCES += drivers/renesas/rcar/pinctrl/pfc-r8a77951.c
+    BL31_SOURCES += drivers/renesas/rcar/pinctrl/pfc-r8a7796.c
   endif
 endif
 BL31_SOURCES += drivers/renesas/rcar/pinctrl/core.c
