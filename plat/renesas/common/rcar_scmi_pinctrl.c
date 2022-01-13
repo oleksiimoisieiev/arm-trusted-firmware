@@ -66,7 +66,7 @@ static uint32_t protocol_version(size_t channel __unused,
 	uint32_t *version = (uint32_t*)(param + sizeof(*status));
 	*status = SCMI_SUCCESS;
 	*version = 0x10000;
-	VERBOSE("scmi: Process pinctrl protocol_version\n");
+	WARN("scmi: Process pinctrl protocol_version\n");
 	return sizeof(*status) + sizeof(*version);
 }
 
@@ -83,7 +83,7 @@ static uint32_t protocol_attrs(size_t channel __unused,
 	*attrs = FLD(GENMASK(31, 16), nr_groups) |
 		 FLD(GENMASK(15,  0), nr_functions);
 
-	VERBOSE("scmi: Process pinctrl protocol_attrs group_max = %d, func_max = %d\n",
+	WARN("scmi: Process pinctrl protocol_attrs group_max = %d, func_max = %d\n",
 			nr_groups, nr_functions);
 	return sizeof(*status) + sizeof(*attrs);
 }
@@ -105,7 +105,7 @@ static uint32_t protocol_msg_attrs(size_t channel __unused,
 	*status = SCMI_SUCCESS;
 	*attrs = 0x0;
 
-	VERBOSE("scmi: Process pinctrl protocol_msg_attrs\n");
+	WARN("scmi: Process pinctrl protocol_msg_attrs\n");
 
 	return sizeof(*status) + sizeof(*attrs);
 }
@@ -130,7 +130,7 @@ static uint32_t get_group_pins(size_t channel __unused,
 	unsigned nr_pins;
 	int ret;
 
-	VERBOSE("scmi: pinctrl get_group_pins sel = %d skip = %d\n", tx.selector, tx.skip);
+	WARN("scmi: pinctrl get_group_pins sel = %d skip = %d\n", tx.selector, tx.skip);
 	if (size != sizeof(tx)) {
 		rx->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(rx->status);
@@ -149,11 +149,11 @@ static uint32_t get_group_pins(size_t channel __unused,
 		}
 
 		rx->pins[lcounter] = pins[counter];
-		VERBOSE("group pins [%d] = %d\n", lcounter, pins[counter]);
+		WARN("group pins [%d] = %d\n", lcounter, pins[counter]);
 	}
 
 	rx->nr_pins = lcounter;
-	VERBOSE("scmi: pinctrl get nr_pins= %d\n", rx->nr_pins);
+	WARN("scmi: pinctrl get nr_pins= %d\n", rx->nr_pins);
 	rx->status = SCMI_SUCCESS;
 
 	return sizeof(*rx) +
@@ -177,7 +177,7 @@ static uint32_t get_pins(size_t channel __unused,
 	unsigned nr_pins;
 	int ret;
 
-	VERBOSE("scmi: pinctrl get_pins skip = %d\n", skip);
+	WARN("scmi: pinctrl get_pins skip = %d\n", skip);
 	if (size != sizeof(skip)) {
 		rx->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(rx->status);
@@ -190,7 +190,7 @@ static uint32_t get_pins(size_t channel __unused,
 		return sizeof(rx->status);
 	};
 
-	VERBOSE("max_payload_size = %d\n", max_payload_size);
+	WARN("max_payload_size = %d\n", max_payload_size);
 
 	for (counter = skip; counter < nr_pins; counter++, lcounter++) {
 		const struct pinctrl_pin *info = &pins[counter];
@@ -202,7 +202,7 @@ static uint32_t get_pins(size_t channel __unused,
 	}
 
 	rx->nr_pins = lcounter;
-	VERBOSE("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins);
+	WARN("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins);
 	rx->status = SCMI_SUCCESS;
 
 	return sizeof(*rx) +
@@ -229,7 +229,7 @@ static uint32_t get_function_groups(size_t channel __unused,
 	unsigned nr_groups;
 	int ret;
 
-	VERBOSE("scmi: pinctrl get_func_groups sel = %d skip = %d\n", tx.selector, tx.skip);
+	WARN("scmi: pinctrl get_func_groups sel = %d skip = %d\n", tx.selector, tx.skip);
 	if (size != sizeof(tx)) {
 		rx->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(rx->status);
@@ -248,11 +248,11 @@ static uint32_t get_function_groups(size_t channel __unused,
 		}
 
 		rx->groups[lcounter] = groups[counter];
-		VERBOSE("func groups [%d] = %d\n", lcounter, groups[counter]);
+		WARN("func groups [%d] = %d\n", lcounter, groups[counter]);
 	}
 
 	rx->nr_groups = lcounter;
-	VERBOSE("scmi: pinctrl get nr_groups= %d\n", rx->nr_groups);
+	WARN("scmi: pinctrl get nr_groups= %d\n", rx->nr_groups);
 	rx->status = SCMI_SUCCESS;
 
 	return sizeof(*rx) +
@@ -271,7 +271,7 @@ static uint32_t set_mux(size_t channel __unused,
 	int32_t *status = (int32_t *)param;
 	int ret;
 
-	VERBOSE("scmi:pinctrl set mux func = %d, group = %d\n", tx.function,
+	WARN("scmi:pinctrl set mux func = %d, group = %d\n", tx.function,
 		 tx.group);
 
 	if (size != sizeof(tx)) {
