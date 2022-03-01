@@ -55,7 +55,7 @@ static uintptr_t rcar_sip_handler(unsigned int smc_fid,
 #endif	/* PMIC_ROHM_BD9571 */
 		SMC_RET3(handle, board_ret, board_type, board_rev);
 
-	case RCAR_SIP_SVC_MBOX_TRIGGER:
+	case RCAR_SIP_SVC_MBOX_TRIGGER_ST...RCAR_SIP_SVC_MBOX_TRIGGER_END:
 		ret = rcar_trigger_scmi(SMC_GET_GP(handle, CTX_GPREG_X7));
 		SMC_RET1(handle, ret);
 
