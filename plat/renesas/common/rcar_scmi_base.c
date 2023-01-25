@@ -142,7 +142,8 @@ static uint32_t impl_version(size_t channel __unused,
 	int32_t *status = (int32_t*)param;
 	uint32_t *version = (uint32_t*)(param + sizeof(*status));
 	*status = SCMI_SUCCESS;
-	*version = 0x1001;
+	*version = 0x1002;
+	INFO("VERSION\n");
 	return sizeof(*status) + sizeof(*version);
 }
 
