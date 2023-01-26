@@ -41,6 +41,7 @@ void pinctrl_init(const pinctrl_ops_t *ctrl_ops, const pinmux_ops_t *mux_ops,
 
 /* pinctrl functions */
 uint16_t pinctrl_get_groups_count(void);
+const char *pinctrl_get_group_name(unsigned selector);
 int pinctrl_get_group_pins(unsigned selector, const unsigned **pins,
 					 unsigned *num_pins);
 int pinctrl_get_pins(const struct pinctrl_pin **pins, unsigned *num_pins);
@@ -49,6 +50,7 @@ int pinctrl_get_pins(const struct pinctrl_pin **pins, unsigned *num_pins);
 int pinctrl_request(unsigned offset);
 int pinctrl_free(unsigned offset);
 uint16_t pinctrl_get_functions_count(void);
+const char *pinctrl_get_function_name(unsigned selector);
 int pinctrl_get_function_groups(unsigned selector, const int **groups,
 			  unsigned *num_groups);
 int pinctrl_set_mux(unsigned func_selector, unsigned group_selector);

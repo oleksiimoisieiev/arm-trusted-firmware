@@ -27,6 +27,14 @@ uint16_t pinctrl_get_groups_count(void)
 	return ctrl_ops_g->get_groups_count();
 }
 
+const char *pinctrl_get_group_name(unsigned selector) {
+  assert(ctrl_ops_g);
+  if (!ctrl_ops_g->get_group_name)
+    return 0;
+
+  return ctrl_ops_g->get_group_name(selector);
+}
+
 int pinctrl_get_group_pins(unsigned selector, const unsigned **pins,
 					 unsigned *num_pins)
 {
@@ -55,6 +63,14 @@ uint16_t pinctrl_get_functions_count(void)
 	return mux_ops_g->get_functions_count();
 }
 
+const char *pinctrl_get_function_name(unsigned selector)
+{
+  assert(mux_ops_g);
+  if (!mux_ops_g->get_function_name)
+    return 0;
+
+  return mux_ops_g->get_function_name(selector);
+}
 int pinctrl_get_function_groups(unsigned selector, const int **groups,
 			  unsigned *num_groups)
 {
