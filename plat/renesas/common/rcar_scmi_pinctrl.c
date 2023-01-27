@@ -526,16 +526,15 @@ static uint32_t scmi_function_select(size_t channel __unused,
 	return sizeof(*status);
 }
 
-static uint32_t request_pin(size_t channel __unused, volatile uint8_t *param,
+static uint32_t scmi_request(size_t channel __unused, volatile uint8_t *param,
                             size_t size __unused)
-{
+{ //done not tested
 	struct request_tx {
 		uint32_t identifier;
 		uint32_t flags;
 	} tx = *(struct request_tx *)param;
 	int32_t *status = (int32_t *)param;
 	int ret;
-	int type;
 
 	if (size != sizeof(tx)) {
 		*status = SCMI_PROTOCOL_ERROR;
@@ -543,97 +542,168 @@ static uint32_t request_pin(size_t channel __unused, volatile uint8_t *param,
 	}
 
 	if (tx.flags != 0) {
-		WARN("Only pin request is supported\n")
+		WARN("Only pin request is supported\n");
+		*status = SCMI_DENIED;
+		return sizeof(*status);
 	}
-	ret = pinctrl_request(pin);
-  if (ret) {
-    ERROR("scmi: pinctrl_request_pin failed with ret = %d\n", ret);
-    *status = SCMI_GENERIC_ERROR;
-    return sizeof(*status);
-  }
 
-  *status = SCMI_SUCCESS;
-  return sizeof(*status);
+	ret = pinctrl_request(tx.identifier);
+	if (ret) {
+		ERROR("scmi: pinctrl_request_pin failed with ret = %d\n", ret);
+		*status = SCMI_INVALID_PARAMETERS;
+		return sizeof(*status);
+	}
+	//TODO amoi check all returns according to spec
+	*status = SCMI_SUCCESS;
+	return sizeof(*status);
 }
 
-  //====== end if impl
-  static uint32_t get_pins(size_t channel __unused, volatile uint8_t * param,
-                           size_t size __unused) {
-    uint32_t skip = *(uint32_t *)param;
-    struct pins_rx {
-      int32_t status;
-      uint32_t nr_pins;
-      uint16_t pins[];
-    } *rx = (struct pins_rx *)param;
-    uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx);
-    int counter = 0, lcounter = 0;
+static uint32_t scmi_release(size_t channel __unused, volatile uint8_t *param,
+                             size_t size __unused)
+{ //done not tested
+	struct release_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct release_tx *)param;
+	int32_t *status = (int32_t *)param;
+	int ret;
 
-    const struct pinctrl_pin *pins;
-    unsigned nr_pins;
-    int ret;
+	if (size != sizeof(tx)) {
+		*status = SCMI_PROTOCOL_ERROR;
+		return sizeof(*status);
+	}
 
-    WARN("scmi: pinctrl get_pins skip = %d\n", skip);
-    if (size != sizeof(skip)) {
-      rx->status = SCMI_PROTOCOL_ERROR;
-      return sizeof(rx->status);
-    }
+	if (tx.flags != 0) {
+		WARN("Only pin request is supported\n");
+		*status = SCMI_DENIED;
+		return sizeof(*status);
+	}
 
-    ret = pinctrl_get_pins(&pins, &nr_pins);
-    if (ret) {
-      ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret);
-      rx->status = SCMI_GENERIC_ERROR;
-      return sizeof(rx->status);
-    };
+	ret = pinctrl_free(tx.identifier);
+	if (ret) {
+		ERROR("scmi: pinctrl_free_pin failed with ret = %d\n", ret);
+		*status = SCMI_GENERIC_ERROR;
+		return sizeof(*status);
+	}
 
-    WARN("max_payload_size = %d\n", max_payload_size);
+	*status = SCMI_SUCCESS;
+	return sizeof(*status);
+}
 
-    for (counter = skip; counter < nr_pins; counter++, lcounter++) {
-      const struct pinctrl_pin *info = &pins[counter];
-      if (lcounter * sizeof(uint16_t) >= max_payload_size) {
-        break;
-      }
+static uint32_t scmi_name_get(size_t channel __unused, volatile uint8_t *param,
+                             size_t size __unused)
+{ //done not tested
+	struct name_tx {
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct name_tx *)param;
+	struct name_rx {
+		int32_t status;
+		uint32_t flags;
+		char name[64];
+	} *rx = (struct name_rx *)param;
+	int ret;
+	unsigned nr_pins;
+	const struct pinctrl_pin *pins;
 
-      rx->pins[lcounter] = info->pin != (uint16_t)-1 ? info->pin : counter;
-    }
+	WARN("scmi: pinctrl_name_get id = %d flags = %d\n", tx.identifier,
+		 tx.flags);
 
-    rx->nr_pins = lcounter;
-    WARN("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins);
-    rx->status = SCMI_SUCCESS;
+	if (size != sizeof(tx) || (tx.flags > 2)) {
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
 
-    return sizeof(*rx) +
-           ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t));
-  }
+	switch (tx.flags) {
+	case 0: //pin
+		ret = pinctrl_get_pins(&pins, &nr_pins);
+		if (ret) {
+			ERROR("scmi_name_get: unable to get pins: %d\n", ret);
+			rx->status = SCMI_GENERIC_ERROR;
+			return sizeof(rx->status);
+		}
 
+		strlcpy(rx->name, pins[tx.identifier].name, sizeof(rx->name));
+		break;
+	case 1: //group
+		strlcpy(rx->name, pinctrl_get_group_name(tx.identifier), sizeof(rx->name));
+		break;
+	case 2: //function
+		strlcpy(rx->name, pinctrl_get_function_name(tx.identifier),
+                  sizeof(rx->name));
+		break;
+	default:
+		rx->status = SCMI_PROTOCOL_ERROR;
+		return sizeof(rx->status);
+	}
 
+	rx->status = SCMI_SUCCESS;
+	return sizeof(*rx);
+}
 
+static uint32_t scmi_set_permissions(size_t channel __unused, volatile uint8_t *param,
+                         size_t size __unused)
+{
+	struct perms_tx {
+		uint32_t agent_id;
+		uint32_t identifier;
+		uint32_t flags;
+	} tx = *(struct perms_tx *)param;
+	int32_t *status = (int32_t *)param;
 
+	WARN("set permissions agent_id %d, id= %d, flags = %d\n", tx.agent_id,
+		 tx.identifier, tx.flags);
+	*status = SCMI_NOT_SUPPORTED;
+	return sizeof(*status);
+}
 
+//====== end if impl
+  /* static uint32_t get_pins(size_t channel __unused, volatile uint8_t * param, */
+  /*                          size_t size __unused) { */
+  /*   uint32_t skip = *(uint32_t *)param; */
+  /*   struct pins_rx { */
+  /*     int32_t status; */
+  /*     uint32_t nr_pins; */
+  /*     uint16_t pins[]; */
+  /*   } *rx = (struct pins_rx *)param; */
+  /*   uint32_t max_payload_size = SCMI_MAX_PAYLOAD - sizeof(*rx); */
+  /*   int counter = 0, lcounter = 0; */
 
+  /*   const struct pinctrl_pin *pins; */
+  /*   unsigned nr_pins; */
+  /*   int ret; */
 
+  /*   WARN("scmi: pinctrl get_pins skip = %d\n", skip); */
+  /*   if (size != sizeof(skip)) { */
+  /*     rx->status = SCMI_PROTOCOL_ERROR; */
+  /*     return sizeof(rx->status); */
+  /*   } */
 
+  /*   ret = pinctrl_get_pins(&pins, &nr_pins); */
+  /*   if (ret) { */
+  /*     ERROR("scmi: pinctrl_get_pins failed with ret = %d\n", ret); */
+  /*     rx->status = SCMI_GENERIC_ERROR; */
+  /*     return sizeof(rx->status); */
+  /*   }; */
 
+  /*   WARN("max_payload_size = %d\n", max_payload_size); */
 
-  static uint32_t free_pin(size_t channel __unused, volatile uint8_t * param,
-                           size_t size __unused) {
-    uint32_t pin = *(uint32_t *)param;
-    int32_t *status = (int32_t *)param;
-    int ret;
+  /*   for (counter = skip; counter < nr_pins; counter++, lcounter++) { */
+  /*     const struct pinctrl_pin *info = &pins[counter]; */
+  /*     if (lcounter * sizeof(uint16_t) >= max_payload_size) { */
+  /*       break; */
+  /*     } */
 
-    if (size != sizeof(pin)) {
-      *status = SCMI_PROTOCOL_ERROR;
-      return sizeof(*status);
-    }
+  /*     rx->pins[lcounter] = info->pin != (uint16_t)-1 ? info->pin : counter; */
+  /*   } */
 
-    ret = pinctrl_free(pin);
-    if (ret) {
-      ERROR("scmi: pinctrl_free_pin failed with ret = %d\n", ret);
-      *status = SCMI_GENERIC_ERROR;
-      return sizeof(*status);
-    }
+  /*   rx->nr_pins = lcounter; */
+  /*   WARN("scmi: pinctrl get nr_pins = %d\n", rx->nr_pins); */
+  /*   rx->status = SCMI_SUCCESS; */
 
-    *status = SCMI_SUCCESS;
-    return sizeof(*status);
-  }
+  /*   return sizeof(*rx) + */
+  /*          ALIGN_NEXT(lcounter * sizeof(uint16_t), sizeof(uint32_t)); */
+  /* } */
 
 typedef uint32_t (*pinctrl_handler_t)(size_t, volatile uint8_t *, size_t);
 
