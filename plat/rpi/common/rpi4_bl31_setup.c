@@ -112,6 +112,7 @@ static void ldelay(register_t delay)
  * tables. BL2 has flushed this information to memory, so we are guaranteed
  * to pick up good data.
  ******************************************************************************/
+
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 
@@ -132,6 +133,16 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	/* Initialize the console to provide early debug support. */
 	rpi3_console_init();
 
+#ifdef BL32_BASE
+	INFO("rpi: Moving OP-TEE Image to %lx\n", RPI_OPTEE_BASE);
+	/* TODO: PA->VA */
+	memcpy((void*)RPI_OPTEE_BASE, (void*)BL32_BASE, BL32_MEM_SIZE);
+	INFO("rpi: Preparing to boot OP-TEE\n"); /* TODO: VERBOSE */
+	bl32_image_ep_info.pc = RPI_OPTEE_BASE;
+	bl32_image_ep_info.spsr = rpi3_get_spsr_for_bl33_entry();
+	bl32_image_ep_info.args.arg3 = rpi4_get_dtb_address();
+	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, SECURE);
+#endif
 	bl33_image_ep_info.pc = plat_get_ns_image_entrypoint();
 	bl33_image_ep_info.spsr = rpi3_get_spsr_for_bl33_entry();
 	SET_SECURITY_STATE(bl33_image_ep_info.h.attr, NON_SECURE);

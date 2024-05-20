@@ -40,7 +40,8 @@
 					PLAT_RPI3_FIP_MAX_SIZE,		\
 					MT_MEMORY | MT_RO | MT_NS)
 
-#define MAP_BL32_MEM	MAP_REGION_FLAT(BL32_MEM_BASE, BL32_MEM_SIZE,	\
+/* TODO: Use this in correct way */
+#define MAP_BL32_MEM	MAP_REGION_FLAT(RPI_OPTEE_BASE, RPI_OPTEE_SIZE,	\
 					MT_MEMORY | MT_RW | MT_SECURE)
 
 #ifdef SPD_opteed
@@ -61,7 +62,7 @@ static const mmap_region_t plat_rpi3_mmap[] = {
 	MAP_DEVICE0,
 	MAP_FIP,
 #ifdef SPD_opteed
-	MAP_OPTEE_PAGEABLE,
+//	MAP_OPTEE_PAGEABLE,
 #endif
 	{0}
 };
@@ -76,7 +77,7 @@ static const mmap_region_t plat_rpi3_mmap[] = {
 	MAP_FIP,
 	MAP_NS_DRAM0,
 #ifdef BL32_BASE
-	MAP_BL32_MEM,
+//	MAP_BL32_MEM,
 #endif
 	{0}
 };

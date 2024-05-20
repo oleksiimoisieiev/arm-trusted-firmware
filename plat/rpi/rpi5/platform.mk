@@ -101,6 +101,20 @@ ifeq (${ARCH},aarch32)
   $(error Error: AArch32 not supported on rpi5)
 endif
 
+ifdef BL32_BASE
+BL32_MEM_BASE = BL32_BASE
+BL32_MEM_SIZE = 0x100000
+# Very end of 8GB RAM
+RPI_OPTEE_BASE ?= 0x1FE000000
+RPI_OPTEE_SIZE ?= 0x002000000
+# TODO: Maybe reuse this insted of RPI_OPTEE_MEMBASE/SIZE?
+$(eval $(call add_define,BL32_MEM_BASE))
+$(eval $(call add_define,BL32_MEM_SIZE))
+$(eval $(call add_define,BL32_BASE))
+$(eval $(call add_define,RPI_OPTEE_BASE))
+$(eval $(call add_define,RPI_OPTEE_SIZE))
+endif
+
 ifneq ($(ENABLE_STACK_PROTECTOR), 0)
 PLAT_BL_COMMON_SOURCES	+=	drivers/rpi3/rng/rpi3_rng.c		\
 				plat/rpi/common/rpi3_stack_protector.c
