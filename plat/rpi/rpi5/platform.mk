@@ -92,6 +92,15 @@ SCMI_SERVER_SUPPORT		:= 1
 # Process platform flags
 # ----------------------
 
+ifdef SCMI_SERVER_SUPPORT
+#SCMI Server sources
+BL31_SOURCES		+= drivers/scmi-msg/base.c			\
+				drivers/scmi-msg/entry.c		\
+				drivers/scmi-msg/smt.c			\
+				plat/rpi/rpi5/scmi/scmi.c		\
+				plat/rpi/rpi5/rpi5_svc_setup.c
+endif
+
 $(eval $(call add_define,RPI3_BL33_IN_AARCH32))
 $(eval $(call add_define,RPI3_DIRECT_LINUX_BOOT))
 ifdef RPI3_PRELOADED_DTB_BASE
