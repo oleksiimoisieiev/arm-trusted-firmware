@@ -97,7 +97,9 @@ ifdef SCMI_SERVER_SUPPORT
 BL31_SOURCES		+= drivers/scmi-msg/base.c			\
 				drivers/scmi-msg/entry.c		\
 				drivers/scmi-msg/smt.c			\
+				drivers/scmi-msg/reset_domain.c		\
 				plat/rpi/rpi5/scmi/scmi.c		\
+				plat/rpi/rpi5/scmi/scmi_reset.c		\
 				plat/rpi/rpi5/rpi5_svc_setup.c
 endif
 
