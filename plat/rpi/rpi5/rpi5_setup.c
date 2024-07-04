@@ -6,7 +6,13 @@
 
 #include <rpi_shared.h>
 
+#ifdef SCMI_SERVER_SUPPORT
+extern void rpi5_init_scmi_server(void);
+#endif
+
 void plat_rpi_bl31_custom_setup(void)
 {
-	/* Nothing to do here yet. */
+#ifdef SCMI_SERVER_SUPPORT
+	rpi5_init_scmi_server();
+#endif
 }
