@@ -11,7 +11,7 @@
 
 #include <platform_def.h>
 
-#define RPI_SHM_BASE		0x2efe0000
+#define RPI_SHM_BASE		0x1ffc00000
 #define RPI_SHM0_BASE	RPI_SHM_BASE
 
 static struct scmi_msg_channel scmi_channel[] = {
@@ -60,7 +60,7 @@ const uint8_t *plat_scmi_protocol_list(unsigned int agent_id __unused)
 void rpi5_init_scmi_server(void)
 {
 	size_t i;
-
+	INFO("!!! %s \n", __func__);
 	for (i = 0U; i < ARRAY_SIZE(scmi_channel); i++) {
 		scmi_smt_init_agent_channel(&scmi_channel[i]);
 	}
