@@ -16,6 +16,7 @@
 /* Setup Standard Services */
 static int32_t rpi5_svc_setup(void)
 {
+	INFO("!!! %s \n", __func__);
 	return 0;
 }
 
