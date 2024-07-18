@@ -113,22 +113,22 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 	uint32_t smt_status;
 	struct scmi_msg msg;
 	bool error = true;
-
+	PP("");
 	chan = plat_scmi_get_channel(agent_id);
 	if (chan == NULL) {
 		return;
 	}
-
+	PP("");
 	smt_hdr = channel_to_smt_hdr(chan);
 	assert(smt_hdr);
-
+	PP("");
 	smt_status = __atomic_load_n(&smt_hdr->status, __ATOMIC_RELAXED);
-
+	PP("");
 	if (!channel_set_busy(chan)) {
 		VERBOSE("SCMI channel %u busy", agent_id);
 		goto out;
 	}
-
+	PP("");
 	in_payload_size = __atomic_load_n(&smt_hdr->length, __ATOMIC_RELAXED) -
 			  sizeof(smt_hdr->message_header);
 
@@ -178,6 +178,7 @@ out:
 
 void scmi_smt_fastcall_smc_entry(unsigned int agent_id)
 {
+	PP("");
 	scmi_proccess_smt(agent_id,
 			  fast_smc_payload[plat_my_core_pos()]);
 }
