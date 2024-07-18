@@ -94,6 +94,7 @@ static bool xlat_table_is_empty(const xlat_ctx_t *ctx, const uint64_t *table)
 /* Returns a pointer to the first empty translation table. */
 static uint64_t *xlat_table_get_empty(xlat_ctx_t *ctx)
 {
+	PP("next_table = %d tables_num = %d", ctx->next_table, ctx->tables_num);
 	assert(ctx->next_table < ctx->tables_num);
 
 	return ctx->tables[ctx->next_table++];
