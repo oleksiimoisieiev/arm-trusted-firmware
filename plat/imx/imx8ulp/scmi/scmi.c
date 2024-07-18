@@ -11,7 +11,7 @@
 
 #include <platform_def.h>
 
-#define SMT_BUFFER_BASE		0x2201f000
+#define SMT_BUFFER_BASE		0x7FF0000
 #define SMT_BUFFER0_BASE	SMT_BUFFER_BASE
 #define SMT_BUFFER1_BASE	(SMT_BUFFER_BASE + 0x200)
 
