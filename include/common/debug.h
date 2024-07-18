@@ -47,6 +47,8 @@
 #define LOG_MARKER_INFO			"\x28"	/* 40 */
 #define LOG_MARKER_VERBOSE		"\x32"	/* 50 */
 
+#define PP(fmt, ...) \
+	INFO("==== %s %d " fmt "\n", __func__, __LINE__, ##__VA_ARGS__);
 /*
  * If the log output is too low then this macro is used in place of tf_log()
  * below. The intent is to get the compiler to evaluate the function call for
