@@ -16,7 +16,7 @@
 /* Setup Standard Services */
 static int32_t rpi5_svc_setup(void)
 {
-	INFO("!!! %s \n", __func__);
+	PP("");
 	return 0;
 }
 
@@ -29,7 +29,7 @@ static uintptr_t rpi5_svc_smc_handler(uint32_t smc_fid, u_register_t x1,
 					  void *handle, u_register_t flags)
 {
 	uint32_t ret1 = 0U;
-
+	PP("");
 	switch (smc_fid) {
 	case RPI5_SIP_SMC_SCMI:
 		scmi_smt_fastcall_smc_entry(0);
