@@ -51,6 +51,13 @@
 				MT_MEMORY | MT_RW | MT_SECURE)
 #endif
 
+//#ifdef SCMI
+#define MAP_SCMI_MEM	MAP_REGION_FLAT(		\
+				0x7FF0000,	\
+				0x10000,	\
+				MT_MEMORY | MT_RW | MT_NS)
+//#endif
+
 /*
  * Table of regions for various BL stages to map using the MMU.
  */
@@ -95,6 +102,9 @@ static const mmap_region_t plat_rpi3_mmap[] = {
 #ifdef BL32_BASE
 	MAP_BL32_MEM,
 #endif
+//#if SCMI
+	MAP_SCMI_MEM,
+//#endif
 	{0}
 };
 #endif
