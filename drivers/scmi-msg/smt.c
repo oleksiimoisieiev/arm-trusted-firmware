@@ -131,18 +131,18 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 	PP("");
 	in_payload_size = __atomic_load_n(&smt_hdr->length, __ATOMIC_RELAXED) -
 			  sizeof(smt_hdr->message_header);
-
+	PP("");
 	if (in_payload_size > SCMI_PLAYLOAD_MAX) {
 		VERBOSE("SCMI payload too big %zu", in_payload_size);
 		goto out;
 	}
-
+	PP("");
 	if ((smt_status & (SMT_STATUS_ERROR | SMT_STATUS_FREE)) != 0U) {
 		VERBOSE("SCMI channel bad status 0x%x",
 			smt_hdr->status & (SMT_STATUS_ERROR | SMT_STATUS_FREE));
 		goto out;
 	}
-
+	PP("");
 	/* Fill message */
 	zeromem(&msg, sizeof(msg));
 	msg.in = (char *)payload_buf;
@@ -151,7 +151,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 	msg.out_size = chan->shm_size - sizeof(*smt_hdr);
 
 	assert((msg.out != NULL) && (msg.out_size >= sizeof(int32_t)));
-
+	PP("");
 	/* Here the payload is copied in secure memory */
 	memcpy(msg.in, smt_hdr->payload, in_payload_size);
 
@@ -163,7 +163,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 
 	/* Update message length with the length of the response message */
 	smt_hdr->length = msg.out_size_out + sizeof(smt_hdr->message_header);
-
+	PP("");
 	channel_release_busy(chan);
 	error = false;
 
