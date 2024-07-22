@@ -27,6 +27,7 @@ BL31_SOURCES		+=	lib/cpus/aarch64/cortex_a76.S			\
 				plat/rpi/common/rpi3_pm.c			\
 				plat/common/plat_psci_common.c			\
 				plat/rpi/common/rpi3_topology.c			\
+				drivers/delay_timer/generic_delay_timer.c	\
 				${GICV2_SOURCES}
 
 # For now we only support BL31, using the kernel loaded by the GPU firmware.
