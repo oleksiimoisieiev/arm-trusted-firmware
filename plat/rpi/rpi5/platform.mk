@@ -86,8 +86,22 @@ RPI3_RUNTIME_UART		:= 0
 # Use normal memory mapping for ROM, FIP, SRAM and DRAM
 RPI3_USE_UEFI_MAP		:= 0
 
+# Enable SCMI server support for RPI5
+SCMI_SERVER_SUPPORT		:= 1
+
 # Process platform flags
 # ----------------------
+
+ifdef SCMI_SERVER_SUPPORT
+#SCMI Server sources
+BL31_SOURCES		+= drivers/scmi-msg/base.c			\
+				drivers/scmi-msg/entry.c		\
+				drivers/scmi-msg/smt.c			\
+				drivers/scmi-msg/reset_domain.c		\
+				plat/rpi/rpi5/scmi/scmi.c		\
+				plat/rpi/rpi5/scmi/scmi_reset.c		\
+				plat/rpi/rpi5/rpi5_svc_setup.c
+endif
 
 $(eval $(call add_define,RPI3_BL33_IN_AARCH32))
 $(eval $(call add_define,RPI3_DIRECT_LINUX_BOOT))
@@ -96,6 +110,14 @@ $(eval $(call add_define,RPI3_PRELOADED_DTB_BASE))
 endif
 $(eval $(call add_define,RPI3_RUNTIME_UART))
 $(eval $(call add_define,RPI3_USE_UEFI_MAP))
+$(eval $(call add_define,SCMI_SERVER_SUPPORT))
+
+ifdef SCMI_SERVER_SUPPORT
+RPI_SCMI_SHMEM_BASE := 0x3ff00000
+RPI_SCMI_SHMEM_SIZE := 0x10000
+$(eval $(call add_define,RPI_SCMI_SHMEM_BASE))
+$(eval $(call add_define,RPI_SCMI_SHMEM_SIZE))
+endif
 
 ifeq (${ARCH},aarch32)
   $(error Error: AArch32 not supported on rpi5)

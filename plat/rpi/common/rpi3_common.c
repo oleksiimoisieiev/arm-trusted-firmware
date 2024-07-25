@@ -51,6 +51,13 @@
 				MT_MEMORY | MT_RW | MT_SECURE)
 #endif
 
+#ifdef SCMI_SERVER_SUPPORT
+#define MAP_SCMI_MEM	MAP_REGION_FLAT(		\
+				RPI_SCMI_SHMEM_BASE,	\
+				RPI_SCMI_SHMEM_SIZE,	\
+				MT_NON_CACHEABLE | MT_RW | MT_NS)
+#endif
+
 /*
  * Table of regions for various BL stages to map using the MMU.
  */
@@ -94,6 +101,9 @@ static const mmap_region_t plat_rpi3_mmap[] = {
 #endif
 #ifdef BL32_BASE
 	MAP_BL32_MEM,
+#endif
+#ifdef SCMI_SERVER_SUPPORT
+	MAP_SCMI_MEM,
 #endif
 	{0}
 };
