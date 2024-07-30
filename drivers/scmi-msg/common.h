@@ -13,6 +13,7 @@
 
 #include "base.h"
 #include "clock.h"
+#include "pinctrl.h"
 #include "power_domain.h"
 #include "reset_domain.h"
 #include "sensor.h"
