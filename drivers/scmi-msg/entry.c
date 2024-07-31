@@ -84,6 +84,9 @@ void scmi_process_message(struct scmi_msg *msg)
 	case SCMI_PROTOCOL_ID_SENSOR:
 		handler = scmi_msg_get_sensor_handler(msg);
 		break;
+	case SCMI_PROTOCOL_ID_PINCTRL:
+		handler = scmi_msg_get_pinctrl_handler(msg);
+		break;
 	default:
 		break;
 	}
