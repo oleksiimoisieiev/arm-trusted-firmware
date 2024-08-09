@@ -171,7 +171,8 @@ static void report_attributes(struct scmi_msg *msg)
 
 static void report_message_attributes(struct scmi_msg *msg)
 {
-	struct attrs_rx_m {
+        uint32_t id = *(uint32_t *)msg->in;
+        struct attrs_rx_m {
 		int32_t status;
 		uint32_t attrs;
 	} return_values = {
@@ -179,7 +180,7 @@ static void report_message_attributes(struct scmi_msg *msg)
 			.attrs = 0,
 	};
 
-	if (msg->in_size != sizeof(id)) {
+        if (msg->in_size != sizeof(id)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
 		return;
 	}
