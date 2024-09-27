@@ -53,8 +53,9 @@ static uint32_t protocol_version(size_t channel __unused,
 {
 	int32_t *status = (int32_t*)param;
 	uint32_t *version = (uint32_t*)(param + sizeof(*status));
-	*status = SCMI_SUCCESS;
-	*version = 0x21000; /* DEN0056C, 4.3.2.1 */
+        NOTICE("==%s %d\n", __func__, __LINE__);
+        *status = SCMI_SUCCESS;
+        *version = 0x21000; /* DEN0056C, 4.3.2.1 */
 	return sizeof(*status) + sizeof(*version);
 }
 
@@ -69,8 +70,9 @@ static uint32_t protocol_attrs(size_t channel __unused,
 		uint32_t statistic_len;
 	} *res = (struct proto_attrs*)param;
 
-	res->status = SCMI_SUCCESS;
-	/*TODO: single stub domain for now */
+        NOTICE("==%s %d\n", __func__, __LINE__);
+        res->status = SCMI_SUCCESS;
+        /*TODO: single stub domain for now */
 	res->attributes = FLD(GENMASK(31, 16), 0) |
 			  FLD(GENMASK(15,  0), 1);
 	res->statistic_len = 0;
@@ -85,8 +87,9 @@ static uint32_t protocol_msg_attrs(size_t channel __unused,
 	uint32_t id = *(uint32_t*)param;
 	int32_t *status = (int32_t*)param;
 	uint32_t *attrs = (uint32_t*)(param + sizeof(*status));
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (size != sizeof(id)) {
+        if (size != sizeof(id)) {
 		*status = SCMI_PROTOCOL_ERROR;
 		return sizeof(*status);
 	}
@@ -114,8 +117,9 @@ static uint32_t power_attrs(size_t channel __unused,
 		uint32_t attributes;
 		char name[16];
 	} *res = (struct power_discovery*)param;
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	/*TODO: stub implementation, single same domain only */
+        /*TODO: stub implementation, single same domain only */
 	res->status = SCMI_SUCCESS;
 	res->attributes = 0;
 	strlcpy(res->name, "scmi_core", sizeof(res->name));
@@ -132,8 +136,9 @@ static uint32_t power_state_set(size_t channel __unused,
 		uint32_t state;
 	} param = *((struct parameters*)payload);
 	int32_t status = SCMI_SUCCESS;
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (size != sizeof(param)) {
+        if (size != sizeof(param)) {
 		status = SCMI_PROTOCOL_ERROR;
 		goto error;
 	}
@@ -153,8 +158,9 @@ static uint32_t power_state_get(size_t channel __unused,
 		uint32_t state;
 	} *res = (struct power_state*)param;
 	uint32_t domain_id = *(uint32_t*)param;
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (size != sizeof(domain_id)) {
+        if (size != sizeof(domain_id)) {
 		res->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(res->status);
 	}
