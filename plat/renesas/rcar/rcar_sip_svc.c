@@ -55,8 +55,30 @@ static uintptr_t rcar_sip_handler(unsigned int smc_fid,
 #endif	/* PMIC_ROHM_BD9571 */
 		SMC_RET3(handle, board_ret, board_type, board_rev);
 
+		//TODO amoi refactor
 	case RCAR_SIP_SVC_MBOX_TRIGGER:
-		ret = rcar_trigger_scmi(SMC_GET_GP(handle, CTX_GPREG_X7));
+		ret = rcar_trigger_scmi(0);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 1:
+		ret = rcar_trigger_scmi(1);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 2:
+		ret = rcar_trigger_scmi(2);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 3:
+		ret = rcar_trigger_scmi(3);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 4:
+		ret = rcar_trigger_scmi(4);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 5:
+		ret = rcar_trigger_scmi(5);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 6:
+		ret = rcar_trigger_scmi(6);
+		SMC_RET1(handle, ret);
+	case RCAR_SIP_SVC_MBOX_TRIGGER + 7:
+		ret = rcar_trigger_scmi(7);
 		SMC_RET1(handle, ret);
 
 	case RCAR_SIP_SVC_CALL_COUNT:
