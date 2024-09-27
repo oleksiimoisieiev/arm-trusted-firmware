@@ -222,6 +222,7 @@ static uint32_t protocol_version(size_t channel __unused,
 {
 	int32_t *status = (int32_t*)param;
 	uint32_t *version = (uint32_t*)(param + sizeof(*status));
+	NOTICE("==%s %d\n", __func__, __LINE__);
 	*status = SCMI_SUCCESS;
 	*version = SCMI_PROTOCOL_VERSION;
 	return sizeof(*status) + sizeof(*version);
@@ -233,8 +234,9 @@ static uint32_t protocol_attrs(size_t channel __unused,
 {
 	int32_t *status = (int32_t*)param;
 	uint32_t *attrs = (uint32_t*)(param + sizeof(*status));
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	*status = SCMI_SUCCESS;
+        *status = SCMI_SUCCESS;
 	*attrs = FLD(GENMASK(31, 16), 0) |
 		 FLD(GENMASK(15,  0), RCAR_SCMIRST_MAX);
 
@@ -248,8 +250,9 @@ static uint32_t protocol_msg_attrs(size_t channel __unused,
 	uint32_t id = *(uint32_t*)param;
 	int32_t *status = (int32_t*)param;
 	uint32_t *attrs = (uint32_t*)(param + sizeof(*status));
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (size != sizeof(id)) {
+        if (size != sizeof(id)) {
 		*status = SCMI_PROTOCOL_ERROR;
 		return sizeof(*status);
 	}
@@ -287,8 +290,9 @@ static uint32_t reset_attrs(size_t channel __unused,
 		res->status = SCMI_NOT_FOUND;
 		return sizeof(res->status);
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	memset(res->name, 0, sizeof(res->name));
+        memset(res->name, 0, sizeof(res->name));
 
 	/* synchronous SCP implementation */
 	res->attributes = 0;
@@ -314,8 +318,9 @@ static uint32_t reset(size_t channel,
 		status = SCMI_PROTOCOL_ERROR;
 		goto error;
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (param.id >= RCAR_SCMIRST_MAX) {
+        if (param.id >= RCAR_SCMIRST_MAX) {
 		status = SCMI_NOT_FOUND;
 		goto error;
 	}
