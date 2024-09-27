@@ -157,7 +157,7 @@ uint32_t rcar_trigger_scmi(size_t chan_id)
 	protocol_id = FLD_GET(GENMASK(17,10), shmem->msg_header);
 	message_id = FLD_GET(GENMASK(7,0), shmem->msg_header);
 
-	VERBOSE("BL31-SCMI: channel: 0x%lx, protocol: 0x%x, command: 0x%x\n",
+	NOTICE("BL31-SCMI: channel: 0x%lx, protocol: 0x%x, command: 0x%x\n",
 		chan_id, protocol_id, message_id);
 
 	shmem->length = scmi_handle_cmd(chan_id, protocol_id, message_id,
