@@ -686,8 +686,9 @@ static int mssr_clk_enable(struct scmi_clk *sclk)
 	uintptr_t ctl_reg = CPG_BASE + sclk->clk.mssr.cr;
 	uintptr_t status_reg = CPG_BASE + sclk->clk.mssr.st;
 	uint32_t mask = BIT(sclk->clk.mssr.bit);
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	value = mmio_read_32(ctl_reg);
+        value = mmio_read_32(ctl_reg);
 	value &= ~mask;
 	mmio_write_32(ctl_reg, value);
 
@@ -851,8 +852,9 @@ static uint32_t protocol_msg_attrs(size_t channel __unused,
 	uint32_t id = *(uint32_t*)param;
 	int32_t *status = (int32_t*)param;
 	uint32_t *attrs = (uint32_t*)(param + sizeof(*status));
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (size != sizeof(id)) {
+        if (size != sizeof(id)) {
 		*status = SCMI_PROTOCOL_ERROR;
 		return sizeof(*status);
 	}
@@ -877,8 +879,9 @@ static uint32_t clk_attrs(size_t channel, volatile uint8_t *param, size_t size)
 		res->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(res->status);
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (clock_id >= RCAR_SCMICLK_MAX) {
+        if (clock_id >= RCAR_SCMICLK_MAX) {
 		res->status = SCMI_NOT_FOUND;
 		return sizeof(res->status);
 	}
@@ -903,7 +906,8 @@ static uint32_t set_rate(size_t channel __unused,
 			      size_t size __unused)
 {
 	*(int32_t *)param = SCMI_NOT_SUPPORTED;
-	return sizeof(int32_t);
+        NOTICE("==%s %d\n", __func__, __LINE__);
+        return sizeof(int32_t);
 }
 
 static uint64_t clk_get_rate(uint32_t clock_id)
@@ -911,8 +915,9 @@ static uint64_t clk_get_rate(uint32_t clock_id)
 	int ret;
 	spin_lock(&clk_lock);
 	ret = __clk_get_rate_locked(clock_id);
-	spin_unlock(&clk_lock);
-	return ret;
+        NOTICE("==%s %d\n", __func__, __LINE__);
+        spin_unlock(&clk_lock);
+        return ret;
 }
 
 /*TODO: not conforming to SCMI spec */
@@ -945,8 +950,9 @@ static uint32_t get_rates(size_t channel,
 		res->status = SCMI_DENIED;
 		return sizeof(res->status);
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	rate = clk_get_rate(param.id);
+        rate = clk_get_rate(param.id);
 	/*TODO: only constant rate clocks supported for now */
 	res->num_rates_flags = FLD(GENMASK(31,12), 0) | FLD(GENMASK(11,0), 1);
 	res->rates[0] = (rate >>  0) & GENMASK(31,0); /* lower word */
@@ -969,8 +975,9 @@ static uint32_t get_rate(size_t channel, volatile uint8_t *param, size_t size)
 		res->status = SCMI_PROTOCOL_ERROR;
 		return sizeof(res->status);
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (clock_id >= RCAR_SCMICLK_MAX) {
+        if (clock_id >= RCAR_SCMICLK_MAX) {
 		res->status = SCMI_NOT_FOUND;
 		return sizeof(res->status);
 	}
@@ -992,8 +999,9 @@ static int clk_enable(uint32_t id, uint32_t channel)
 {
 	int ret;
 	spin_lock(&clk_lock);
-	ret = __clk_enable_locked(id, channel);
-	spin_unlock(&clk_lock);
+        NOTICE("==%s %d\n", __func__, __LINE__);
+        ret = __clk_enable_locked(id, channel);
+        spin_unlock(&clk_lock);
 	return ret;
 }
 
@@ -1022,8 +1030,9 @@ static uint32_t set_cfg(size_t channel, volatile uint8_t *payload, size_t size)
 		status = SCMI_NOT_FOUND;
 		goto error;
 	}
+        NOTICE("==%s %d\n", __func__, __LINE__);
 
-	if (!scmi_permission_granted(rcar_clocks[param.id].perm, channel)) {
+        if (!scmi_permission_granted(rcar_clocks[param.id].perm, channel)) {
 		status = SCMI_DENIED;
 		goto error;
 	}
